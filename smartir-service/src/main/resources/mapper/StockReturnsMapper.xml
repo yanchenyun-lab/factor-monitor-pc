@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smartir.mapper.StockReturnsMapper">
+
+    <select id="selectReturnsWithStage" resultType="com.smartir.vo.StockReturnsRawVO">
+        SELECT 
+            r.`trade_date` AS tradeDate,
+            r.`asset_code` AS assetCode,
+            r.`return_rate` AS returnRate,
+            s.`stage` AS stage
+        FROM `stock_returns` r
+        LEFT JOIN `stock_historical_stage` s ON r.`trade_date` = s.`trade_date`
+        <where>
+            <if test="assetCodes != null and assetCodes.size > 0">
+                AND r.`asset_code` IN 
+                <foreach collection="assetCodes" item="code" open="(" separator="," close=")">
+                    #{code}
+                </foreach>
+            </if>
+            <if test="startDate != null and startDate != ''">
+                AND r.`trade_date` &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND r.`trade_date` &lt;= #{endDate}
+            </if>
+        </where>
+        ORDER BY r.`trade_date` ASC, r.`asset_code` ASC
+    </select>
+
+</mapper>

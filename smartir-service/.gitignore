@@ -1,0 +1,87 @@
+# IntelliJ IDEA
+.idea/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/modules.xml
+.idea/**/uiDesigner.xml
+.idea/**/dataSources
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/gradle.xml
+.idea/**/libraries
+.idea/**/mvnw
+.idea/**/encodings.xml
+.idea/**/compiler.xml
+.idea/**/jarRepositories.xml
+.idea/**/vcs.xml
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse 兼容（可选，多人混合开发保留）
+.classpath
+.project
+.c9/
+.c9launch
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.next
+pom.xml.bak
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Java 编译文件
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# 日志文件
+logs/
+*.log
+*.log.*
+*.out
+
+# 本地配置、环境文件
+.env
+.env.local
+application-*.yml
+!application.yml
+application-*.properties
+!application.properties
+
+# Tomcat / Jetty 运行临时目录
+work/
+temp/
+tmp/
+
+# OS 系统文件
+.DS_Store
+Thumbs.db
+
+# 打包导出文件
+*.zip
+*.tar.gz
+*.rar

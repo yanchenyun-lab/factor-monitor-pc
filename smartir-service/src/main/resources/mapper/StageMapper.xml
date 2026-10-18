@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smartir.mapper.StageMapper">
+
+    <select id="selectJoinedFactors" resultType="com.smartir.vo.StageResultVO">
+        SELECT
+            m.trade_date as tradeDate,
+            m.money_direction_factor as money,
+            c.credit_direction_factor as credit,
+            c.growth_direction_factor as growth
+        FROM stock_risk_budget_money_factors m
+        JOIN stock_risk_budget_credit_growth_factors c ON SUBSTRING(m.trade_date, 1, 7) = c.data_month
+        <where>
+            <if test="startDate != null and startDate != ''">
+                AND m.trade_date &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND m.trade_date &lt;= #{endDate}
+            </if>
+        </where>
+        ORDER BY m.trade_date ASC
+    </select>
+
+    <select id="selectJoinedFactorsWithStage" resultType="com.smartir.vo.StageResultVO">
+        SELECT
+            s.trade_date as tradeDate,
+            COALESCE(m.money_direction_factor, 
+                CASE s.stage 
+                    WHEN 1 THEN 1.0 
+                    WHEN 2 THEN 1.0 
+                    WHEN 3 THEN -1.0 
+                    WHEN 4 THEN -1.0 
+                    WHEN 5 THEN -1.0 
+                    WHEN 6 THEN 1.0 
+                    ELSE 0.0 
+                END
+            ) as money,
+            COALESCE(c.credit_direction_factor, 
+                CASE s.stage 
+                    WHEN 1 THEN 1 
+                    WHEN 2 THEN 1 
+                    WHEN 3 THEN 1 
+                    WHEN 4 THEN -1 
+                    WHEN 5 THEN -1 
+                    WHEN 6 THEN -1 
+                    ELSE 0 
+                END
+            ) as credit,
+            COALESCE(c.growth_direction_factor, 
+                CASE s.stage 
+                    WHEN 1 THEN -1 
+                    WHEN 2 THEN 1 
+                    WHEN 3 THEN 1 
+                    WHEN 4 THEN 1 
+                    WHEN 5 THEN -1 
+                    WHEN 6 THEN -1 
+                    ELSE 0 
+                END
+            ) as growth,
+            s.stage as stage
+        FROM stock_historical_stage s
+        LEFT JOIN stock_risk_budget_money_factors m ON s.trade_date = m.trade_date
+        LEFT JOIN stock_risk_budget_credit_growth_factors c ON SUBSTRING(s.trade_date, 1, 7) = c.data_month
+        <where>
+            <if test="startDate != null and startDate != ''">
+                AND s.trade_date &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND s.trade_date &lt;= #{endDate}
+            </if>
+        </where>
+        ORDER BY s.trade_date ASC
+    </select>
+
+</mapper>
