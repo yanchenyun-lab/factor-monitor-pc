@@ -1188,9 +1188,9 @@ export default {
           self.major.loading = false
           if (res.data && res.data.success) {
             const dataObj = res.data.data || {}
-            self.major.cycle = dataObj.current_cycle || dataObj.cycle || ''
+            self.major.cycle = dataObj.current_cycle || ''
             self.major.positions = dataObj.positions || []
-            self.major.endDate = dataObj.calc_date || dataObj.end_date || endDate || ''
+            self.major.endDate = dataObj.calc_date || endDate || ''
             self.$nextTick(() => {
               self.initMajorChart()
               self.updateMajorChart()
@@ -2423,24 +2423,12 @@ export default {
   background: #94a3b8;
 }
 
-/* 参数与配额配置面板样式：设置最大高度与柔和滚动条，保障内网环境所有阶段行及操作按钮全部可见 */
+/* 参数与配额配置面板样式：高度自适应自然展开，保障全部 6 个阶段行与操作按钮 100% 直观可见 */
 .config-panel {
   padding: 4px 0;
   animation: fadeIn 0.3s ease;
-  max-height: 580px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 6px;
-}
-.config-panel::-webkit-scrollbar {
-  width: 6px;
-}
-.config-panel::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-.config-panel::-webkit-scrollbar-track {
-  background: #f8fafc;
+  height: auto;
+  overflow: visible;
 }
 
 .config-section {
@@ -2541,19 +2529,19 @@ export default {
 }
 
 .number-cell {
-  padding: 3px 4px;
+  padding: 2px 2px;
   text-align: center;
 }
 
 .compact-input-number {
-  width: 62px !important;
+  width: 58px !important;
   display: inline-block;
   vertical-align: middle;
 }
 
 .compact-input-number >>> .el-input__inner {
   text-align: center;
-  padding: 0 2px;
+  padding: 0 1px;
   height: 24px;
   line-height: 24px;
   font-size: 11px;
@@ -2629,11 +2617,32 @@ export default {
   to { opacity: 1; }
 }
 
-/* 穿透覆盖 el-card 及 el-card__body，彻底防止内网版本截断内容与配额表格 */
+/* 穿透覆盖 el-card、父级列与 content-wrapper，彻底防止内网环境截断内容与配额表格 */
+.budget-row {
+  height: auto !important;
+  align-items: flex-start !important;
+}
+
+.budget-col {
+  height: auto !important;
+  min-height: auto !important;
+  overflow: visible !important;
+}
+
 .risk-budget-card,
 .risk-budget-card /deep/ .el-card__body,
-.risk-budget-card >>> .el-card__body {
+.risk-budget-card >>> .el-card__body,
+.risk-budget-card .content-wrapper,
+.risk-budget-card /deep/ .content-wrapper {
   overflow: visible !important;
   height: auto !important;
+  max-height: none !important;
+}
+
+.config-panel {
+  padding: 4px 0 16px 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 </style>

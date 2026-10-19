@@ -139,9 +139,7 @@ def dynamic_risk_budget(req: DynamicRiskBudgetRequest):
 
         return ResponseModel.success({
             "current_cycle": cycle,
-            "cycle": cycle,
             "calc_date": calc_date,
-            "end_date": calc_date,
             "positions": positions
         })
     except Exception as e:
