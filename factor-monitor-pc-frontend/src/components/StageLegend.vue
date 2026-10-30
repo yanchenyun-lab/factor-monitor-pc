@@ -2117,7 +2117,7 @@ export default {
 .flex-col-container {
   display: flex;
   flex-direction: column;
-  min-height: 320px;
+  min-height: 350px;
 }
 .flex-1-col {
   display: flex;
@@ -2138,9 +2138,10 @@ export default {
   display: flex;
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
   box-sizing: border-box;
+  min-height: 100px;
 }
 .macro-ai-summary-box {
   background: rgba(255, 255, 255, 0.7);
@@ -2192,12 +2193,12 @@ export default {
   color: #E6A23C;
 }
 .macro-text-part {
-  flex: 1.3;
-  padding-right: 14px;
+  flex: 1.4;
+  padding-right: 10px;
   border-right: 1px dashed #DCDFE6;
   font-size: 13px;
   color: #606266;
-  line-height: 1.8;
+  line-height: 1;
   display: flex;
   flex-direction: column;
 }
@@ -2216,21 +2217,23 @@ export default {
 .macro-cycles-wrapper {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 }
 .stage-cycles-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px 1px;
   width: 100%;
 }
 .cycle-pill {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 2px;
+  padding: 5px 6px;
+  height: 28px;
+  box-sizing: border-box;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   background: #F4F6F9;
   border: 1px solid #E4E7ED;
   color: #909399;
