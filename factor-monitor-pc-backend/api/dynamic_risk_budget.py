@@ -4,7 +4,7 @@
 
 【适用场景】
 专为内网微服务/云桌面隔离环境设计，不依赖任何数据库直连 (pymysql 已彻底移除)。
-行情收益率数据与宏观经济周期数据全部通过 smartIR Java 后端 HTTP 接口 (POST /api/returns/risk-data) 实时获取。
+行情收益率数据与宏观经济周期数据全部通过外部传入的 risk_data 字典注入，不再向 smartIR Java 后端发起请求。
 
 核心入参说明：
 1. asset_pool: 资产池定义字典 (key为任意标识，如 param1, param2 等)
@@ -35,9 +35,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
-# smartIR Java 后端数据服务基础地址 (内网环境可通过环境变量 SMARTIR_API_BASE 自定义)
-DEFAULT_SMARTIR_API_BASE = os.environ.get("SMARTIR_API_BASE", "http://127.0.0.1:8080")
-
 # 普林格宏观六周期映射表
 CYCLE_MAP = {
     1: "阶段1-信用扩张",
@@ -56,7 +53,6 @@ class DynamicRiskBudgetModel:
                  data_table: str = "stock_returns", 
                  custom_bounds: dict = None, 
                  history_window: int = 720,
-                 api_base_url: str = None,
                  **kwargs):
         """
         初始化动态风险预算模型 (纯 HTTP 数据源，无直连数据库依赖)
@@ -65,7 +61,6 @@ class DynamicRiskBudgetModel:
         :param data_table: 数据标识 (默认 "stock_returns")
         :param custom_bounds: 权重边界约束字典 (如 {"param1": (0.0, 0.2)})，未指定资产默认 (0.0, 1.0)
         :param history_window: 协方差回溯交易日窗口 (默认 720 天)
-        :param api_base_url: smartIR Java 后端 HTTP 服务基地址，默认取环境变量 SMARTIR_API_BASE 或 http://127.0.0.1:8080
         """
         self.asset_pool = asset_pool
         self.asset_keys = list(asset_pool.keys())
@@ -73,37 +68,15 @@ class DynamicRiskBudgetModel:
         self.data_table = data_table
         self.custom_bounds = custom_bounds or {}
         self.history_window = history_window
-        self.api_base_url = api_base_url or DEFAULT_SMARTIR_API_BASE
         self.logger = logging.getLogger(f"DynamicRiskBudget_{self.data_table}")
 
-    def fetch_data_from_api(self, end_date: str):
+    def parse_risk_data(self, data_bundle: dict, end_date: str = None):
         """
-        通过 smartIR Java 后端提供的 HTTP 接口获取宏观阶段与资产收益率时序
-        适用于内网隔离环境中无法直连 MySQL 数据库的场景
+        解析基础风险数据包 (宏观阶段与资产日收益率时序)
+        支持直接从 Java 后端或调用方注入数据包，避免反向发起网络请求
         """
-        raw_codes = [str(info['code']).strip('`') for info in self.asset_pool.values()]
-        url = f"{self.api_base_url.rstrip('/')}/api/returns/risk-data"
-        payload = {
-            "assetCodes": raw_codes,
-            "endDate": end_date,
-            "historyWindow": self.history_window
-        }
-        self.logger.info(f"正在从 Java API 获取风险数据: {url}, assetCodes={raw_codes}, endDate={end_date}")
-        try:
-            resp = requests.post(url, json=payload, timeout=30)
-            resp.raise_for_status()
-            res_json = resp.json()
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError(f"无法连接到 smartIR Java 后端服务 ({url})，请确认 Java 项目 (端口 8080) 已启动或检查环境变量 SMARTIR_API_BASE")
-        except requests.exceptions.Timeout:
-            raise TimeoutError(f"请求 smartIR Java 后端服务超时 (超过 30s): {url}")
-        except Exception as e:
-            raise RuntimeError(f"请求 smartIR Java 接口失败: {url}, 错误: {e}")
-
-        # 支持不同包装格式: 统一返回实体 {"code": 200, "data": {...}} 或直接 {...}
-        data_bundle = res_json.get('data') if isinstance(res_json, dict) and 'data' in res_json else res_json
         if not data_bundle or not isinstance(data_bundle, dict):
-            raise ValueError(f"从 Java 接口 {url} 获取数据为空或格式不正确: {res_json}")
+            raise ValueError(f"提供的风险数据包为空或格式不正确: {data_bundle}")
 
         # 解析最新宏观阶段
         current_cycle = data_bundle.get('latestCycleName') or CYCLE_MAP.get(data_bundle.get('latestStage', 1), "阶段1-信用扩张")
@@ -119,7 +92,7 @@ class DynamicRiskBudgetModel:
         asset_code_col = 'assetCode' if 'assetCode' in df_raw.columns else 'asset_code'
         return_rate_col = 'returnRate' if 'returnRate' in df_raw.columns else 'return_rate'
 
-        df_raw['trade_date'] = df_raw[trade_date_col].astype(str)
+        df_raw['trade_date'] = pd.to_datetime(df_raw[trade_date_col]).dt.strftime('%Y-%m-%d')
         df = df_raw.pivot(index='trade_date', columns=asset_code_col, values=return_rate_col)
 
         # 构建大小写不敏感的列名映射，将代码重命名为 asset_pool 的 key (如 param1, param2)
@@ -137,6 +110,8 @@ class DynamicRiskBudgetModel:
                 df[col] = pd.to_numeric(df[col], errors='coerce').astype(float) - 1.0
 
         df.dropna(inplace=True)
+        if df.empty:
+            raise ValueError("提供的资产收益率数据为空，无法执行测算")
         max_date = data_bundle.get('maxDate') or (df.index[-1] if len(df) > 0 else end_date)
         return current_cycle, df, max_date
 
@@ -250,14 +225,18 @@ class DynamicRiskBudgetModel:
 
         return {self.asset_keys[i]: float(final_w[i]) for i in range(n)}
 
-    def run(self, end_date: str = None):
+    def run(self, end_date: str = None, risk_data: dict = None):
         """
-        主运行流程 (纯通过 Java 后端 HTTP 接口获取数据，无数据库访问)
+        主运行流程 (必须传入 risk_data，直接本地解析执行计算)
         """
-        if end_date is None:
+        if end_date is None and (not risk_data or not risk_data.get('maxDate')):
             end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-        current_cycle, returns_df, max_date = self.fetch_data_from_api(end_date)
+        if risk_data:
+            self.logger.info("检测到预拉取的风险数据包 (risk_data)，直接本地解析执行计算")
+            current_cycle, returns_df, max_date = self.parse_risk_data(risk_data, end_date=end_date)
+        else:
+            raise ValueError("缺少必填参数: risk_data 数据包。系统不再支持自动从 smartir-service 获取数据。")
         rb_target = self.cycle_rb_rules.get(current_cycle, {})
 
         final_position = self.solve_constrained_risk_budget(
@@ -273,16 +252,16 @@ def run_dynamic_risk_budget(asset_pool: dict,
                             data_table: str = "stock_returns", 
                             end_date: str = None, 
                             custom_bounds: dict = None,
-                            api_base_url: str = None,
+                            risk_data: dict = None,
                             **kwargs):
     """
-    通用动态风险预算快捷入口 (纯 HTTP API 数据源，不依赖数据库)
+    通用动态风险预算快捷入口 (纯 HTTP API 数据源，不依赖数据库，支持直传 risk_data 数据包)
     :param asset_pool: 资产池定义字典 (key 为任意标识，如 param1, param2)
     :param cycle_rb_rules: 宏观 6 周期风险预算配额字典
     :param data_table: 数据标识 (默认 "stock_returns")
     :param end_date: 截止日期 (YYYY-MM-DD)，可选，默认最新交易日
     :param custom_bounds: 权重边界硬约束 (如 {"param1": (0.0, 0.2)})，可选
-    :param api_base_url: smartIR Java 后端 HTTP 服务基地址，可选
+    :param risk_data: smartIR Java 后端预拉取的风险数据包 (包含 stages 和 returns)，可选
     :return: (current_cycle, positions, calc_date)
         positions 为列表结构: [{"id": "param1", "name": "...", "code": "...", "weight": 0.25}, ...]
     """
@@ -300,10 +279,9 @@ def run_dynamic_risk_budget(asset_pool: dict,
         asset_pool=asset_pool,
         cycle_rb_rules=cycle_rb_rules,
         data_table=data_table,
-        custom_bounds=custom_bounds,
-        api_base_url=api_base_url
+        custom_bounds=custom_bounds
     )
-    current_cycle, pos, calc_date = model.run(end_date=end_date)
+    current_cycle, pos, calc_date = model.run(end_date=end_date, risk_data=risk_data)
 
     positions = []
     for k, v in pos.items():
@@ -321,7 +299,7 @@ def run_dynamic_risk_budget(asset_pool: dict,
 # ==================== 演示用例 ====================
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("【测试1】大类资产动态配置 (通过 Java API POST /api/returns/risk-data 获取数据)")
+    print("【测试1】大类资产动态配置 (需传入 risk_data)")
     print("="*60)
     
     asset_pool_major = {

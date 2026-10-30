@@ -15,10 +15,11 @@ class Settings:
     # smartIR Java 后端 HTTP 数据服务基础路径
     SMARTIR_API_BASE: str = os.getenv("SMARTIR_API_BASE", "http://127.0.0.1:8080")
 
-    # Nacos 服务注册中心配置 (若内网开启微服务体系)
-    NACOS_SERVER_ADDR: str = os.getenv("NACOS_SERVER_ADDR", "")
+    # Nacos 服务注册中心配置 (本地 Nacos 默认端口 18848)
+    NACOS_SERVER_ADDR: str = os.getenv("NACOS_SERVER_ADDR", "127.0.0.1:18848")
     NACOS_NAMESPACE: str = os.getenv("NACOS_NAMESPACE", "")
     NACOS_GROUP: str = os.getenv("NACOS_GROUP", "DEFAULT_GROUP")
+    NACOS_EPHEMERAL: bool = os.getenv("NACOS_EPHEMERAL", "true").lower() in ("true", "1")
 
 
 settings = Settings()

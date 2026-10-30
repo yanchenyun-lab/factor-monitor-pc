@@ -449,7 +449,7 @@ export default {
      * 执行回测主计算流程
      * 1. 校验资产池是否已有效配置；
      * 2. 底层统一查询资产及行业收益率纵表 stock_returns；
-     * 3. 组装请求体并异步 POST 至后端回测服务 /api/dynamic-risk-budget/backtest；
+     * 3. 组装请求体并异步 POST 至后端回测服务 /api/returns/dynamic-risk-budget/backtest；
      * 4. 解析返回的指标卡、年化表、日频净值、仓位演变与周期划分，并触发 ECharts 绘制。
      */
     async runBacktest() {
@@ -480,9 +480,8 @@ export default {
       }
 
       try {
-        const apiHost = window.location.hostname || 'localhost'
-        const res = await axios.post(`http://${apiHost}:8000/api/dynamic-risk-budget/backtest`, payload)
-        if (res.data && res.data.success) {
+        const res = await axios.post('/api/returns/dynamic-risk-budget/backtest', payload)
+        if (res.data && res.data.status) {
           const result = res.data.data
           // 提取核心指标、分年度统计、日度净值、动态仓位与周期切片
           this.metrics = result.raw_metrics || {}

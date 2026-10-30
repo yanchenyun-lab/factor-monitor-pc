@@ -9,9 +9,9 @@ from typing import Any, Dict, Optional
 class ResponseModel:
     @staticmethod
     def success(data: Any = None, message: str = "success") -> Dict[str, Any]:
-        """成功统一响应体"""
+        """成功统一响应体，对接 Java JsonResult 规范"""
         return {
-            "success": True,
+            "status": True,
             "code": 200,
             "message": message,
             "data": data
@@ -19,9 +19,9 @@ class ResponseModel:
 
     @staticmethod
     def error(message: str = "操作失败", code: int = 500, data: Any = None) -> Dict[str, Any]:
-        """失败统一响应体"""
+        """失败统一响应体，对接 Java JsonResult 规范"""
         return {
-            "success": False,
+            "status": False,
             "code": code,
             "message": str(message),
             "data": data

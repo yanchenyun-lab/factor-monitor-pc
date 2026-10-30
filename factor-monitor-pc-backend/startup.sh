@@ -6,6 +6,7 @@ echo "正在启动 smartir-quant 量化服务..."
 export APP_HOST=${APP_HOST:-"0.0.0.0"}
 export APP_PORT=${APP_PORT:-8000}
 export SMARTIR_API_BASE=${SMARTIR_API_BASE:-"http://127.0.0.1:8080"}
+export NACOS_SERVER_ADDR=${NACOS_SERVER_ADDR:-"127.0.0.1:18848"}
 
 # 如果存在虚拟环境则激活
 if [ -d ".venv" ]; then

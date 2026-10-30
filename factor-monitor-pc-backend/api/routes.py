@@ -56,7 +56,7 @@ class DynamicRiskBudgetRequest(BaseModel):
     data_table: Optional[str] = Field(default="stock_returns", description="行情收益率数据源标识")
     end_date: Optional[str] = Field(default=None, description="测算截止日期 (YYYY-MM-DD)，默认为最新交易日")
     custom_bounds: Optional[Dict[str, Any]] = Field(default=None, description="单资产持仓权重硬约束")
-    api_base_url: Optional[str] = Field(default=None, description="smartIR Java 后端 HTTP 基础地址，默认读取 SMARTIR_API_BASE 或 http://127.0.0.1:8080")
+    risk_data: Optional[Any] = Field(default=None, description="预拉取的量化基础风险数据包 (包含 stages 和 returns)")
 
 
 class BacktestRiskBudgetRequest(BaseModel):
@@ -77,7 +77,7 @@ class BacktestRiskBudgetRequest(BaseModel):
     history_window: Optional[int] = Field(default=720, description="滚动协方差估计窗口交易日天数")
     transaction_cost: Optional[float] = Field(default=0.0003, description="单边调仓摩擦损耗率 (默认万三)")
     rf: Optional[float] = Field(default=0.02, description="无风险年化利率 (默认 2%)")
-    api_base_url: Optional[str] = Field(default=None, description="smartIR Java 后端 HTTP 基础地址，默认读取 SMARTIR_API_BASE 或 http://127.0.0.1:8080")
+    risk_data: Optional[Any] = Field(default=None, description="预拉取的量化基础风险数据包 (包含 stages 和 returns)")
 
 
 # ==============================================================================
@@ -105,10 +105,8 @@ def test():
 # 1. 动态风险预算单日测算接口
 # ==============================================================================
 
-@router.post("/risk/dynamic-budget")
+
 @router.post("/dynamic-risk-budget")
-@router.post("/api/dynamic-risk-budget")
-@router.post("/api/risk/dynamic-budget")
 def dynamic_risk_budget(req: DynamicRiskBudgetRequest):
     """
     求解指定交易日的宏观经济周期与最优资产配置建议仓位
@@ -121,7 +119,6 @@ def dynamic_risk_budget(req: DynamicRiskBudgetRequest):
         data_table = payload.get("data_table") or "stock_returns"
         end_date = payload.get("end_date")
         custom_bounds = payload.get("custom_bounds")
-        api_base_url = payload.get("api_base_url")
 
         if not asset_pool:
             return ResponseModel.error("缺少必填参数: asset_pool (或 asset_pool_major / asset_pool_sector)")
@@ -134,7 +131,7 @@ def dynamic_risk_budget(req: DynamicRiskBudgetRequest):
             data_table=data_table,
             end_date=end_date,
             custom_bounds=custom_bounds,
-            api_base_url=api_base_url
+            risk_data=payload.get("risk_data")
         )
 
         return ResponseModel.success({
@@ -151,10 +148,7 @@ def dynamic_risk_budget(req: DynamicRiskBudgetRequest):
 # 2. 动态风险预算全景历史回测接口
 # ==============================================================================
 
-@router.post("/risk/backtest")
 @router.post("/dynamic-risk-budget/backtest")
-@router.post("/api/dynamic-risk-budget/backtest")
-@router.post("/api/risk/backtest")
 def dynamic_risk_budget_backtest(req: BacktestRiskBudgetRequest):
     """
     执行历史时序全景回测，输出逐日净值、权重时序、宏观阶段色块以及量化绩效看板指标

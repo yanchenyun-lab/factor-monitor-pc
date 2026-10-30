@@ -1,6 +1,21 @@
 <template>
   <div class="stage-legend-container">
-    <!-- 第一层级：宏观周期概况与阶段推荐 -->
+    <!-- 顶部全局标题栏 -->
+    <div v-if="showHeader" class="app-header-bar">
+      <div class="header-title-wrapper">
+        <h2 class="app-title-text">三因子宏观经济周期划分的风险预算资产配置模型</h2>
+        <el-tooltip effect="dark" placement="bottom">
+          <div slot="content" style="max-width: 460px; line-height: 1.6; font-size: 13px;">
+            先基于三因子判断该时期的经济处于宏观周期中的哪个阶段，再根据该阶段下各类资产/板块的长期风险收益特征，用风险预算模型计算出最优仓位。
+          </div>
+          <i class="el-icon-question header-help-icon"></i>
+        </el-tooltip>
+      </div>
+    </div>
+
+    <!-- 主体内容区域 -->
+    <div class="stage-content-body">
+      <!-- 第一层级：宏观周期概况与阶段推荐 -->
     <el-row :gutter="20" type="flex" align="stretch" class="mb-20">
       <!-- 左侧：宏观周期概况 -->
       <el-col :span="12" class="flex-col-container" style="min-height: 320px;">
@@ -21,8 +36,22 @@
               <div class="macro-inner-box">
                 <!-- 左侧文本与六周期状态区 -->
                 <div class="macro-text-part">
-                  <div class="macro-stage-section">
-                    <div class="macro-stage-title">当前阶段处于：</div>
+                  <div class="macro-stage-title">
+                    <span>宏观六周期</span>
+                    <el-tooltip effect="dark" placement="top-start">
+                      <div slot="content" style="max-width: 520px; line-height: 1.6; font-size: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">中国经济六周期阶段划分：</div>
+                        <div>1.信用扩张：货币持续宽松，借贷成本降低，投资和消费信心逐渐恢复，促进信用开始扩张；</div>
+                        <div>2.经济复苏：货币供应充裕，信贷市场活跃，推动了经济的快速发展，投资和消费活动增加，经济整体处于高速增长的繁荣状态；</div>
+                        <div>3.货币退潮：经济发展逐渐过热，信贷活动仍然活跃，为了平衡经济增长或抑制通胀，货币政策开始调整收紧；</div>
+                        <div>4.信用退潮：货币供应持续紧缩，借贷成本增加，市场流动性紧缺，信贷活动开始减少；</div>
+                        <div>5.经济放缓：信用退潮导致经济疲软，投资和消费活动减少，经济增长逐步放缓；</div>
+                        <div>6.货币扩张：经济不确定性较高，信贷需求仍然较弱，货币政策采取宽松措施以刺激信贷活动和经济增长。</div>
+                      </div>
+                      <i class="el-icon-question help-icon"></i>
+                    </el-tooltip>
+                  </div>
+                  <div class="macro-cycles-wrapper">
                     <!-- 6个周期横向展示 -->
                     <div class="stage-cycles-grid">
                       <div
@@ -41,26 +70,37 @@
                 </div>
                 <!-- 右侧仪表盘区 -->
                 <div class="macro-gauges-part">
-                  <div class="gauge-wrapper">
-                    <div ref="gaugeMoney" class="gauge-chart"></div>
-                    <div v-if="gaugeFactors.length" class="gauge-title">
-                      货币 <span :class="gaugeFactors[0].colorClass">{{ gaugeFactors[0].text }} <i :class="gaugeFactors[0].iconClass"></i></span>
-                    </div>
-                    <div v-if="gaugeFactors.length" class="gauge-date">{{ latestMacro.tradeDate.replace(/-/g, '') }}</div>
+                  <div class="macro-stage-title">
+                    <span>三因子</span>
+                    <el-tooltip effect="dark" placement="top-start">
+                      <div slot="content" style="max-width: 500px; line-height: 1.6; font-size: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">货币-信用-增长三因子设计：</div>
+                        <div>1.货币：货币传导从央行的货币投放开始，传导至银行端，其周期性体现为货币政策的放宽与收紧，看货币政策工具的边际变化扩散指数；</div>
+                        <div>2.信用：进一步传导到实体需要通过银行与实体部门间的借贷行为，其周期性体现为信贷的扩张与收缩，看中长期贷款脉冲的季度变化；</div>
+                        <div>3.增长：借贷资金流入实体后在各部门间循环流通，其周期性体现为实体部门生产、消费等经济活动的扩张与收缩，看PMI脉冲的季度变化。</div>
+                      </div>
+                      <i class="el-icon-question help-icon"></i>
+                    </el-tooltip>
                   </div>
-                  <div class="gauge-wrapper">
-                    <div ref="gaugeCredit" class="gauge-chart"></div>
-                    <div v-if="gaugeFactors.length" class="gauge-title">
-                      信用 <span :class="gaugeFactors[1].colorClass">{{ gaugeFactors[1].text }} <i :class="gaugeFactors[1].iconClass"></i></span>
+                  <div class="macro-gauges-row">
+                    <div class="gauge-wrapper">
+                      <div ref="gaugeMoney" class="gauge-chart"></div>
+                      <div v-if="gaugeFactors.length" class="gauge-title">
+                        货币 <span :class="gaugeFactors[0].colorClass">{{ gaugeFactors[0].text }} <i :class="gaugeFactors[0].iconClass"></i></span>
+                      </div>
                     </div>
-                    <div v-if="gaugeFactors.length" class="gauge-date">{{ latestMacro.tradeDate.replace(/-/g, '') }}</div>
-                  </div>
-                  <div class="gauge-wrapper">
-                    <div ref="gaugeGrowth" class="gauge-chart"></div>
-                    <div v-if="gaugeFactors.length" class="gauge-title">
-                      增长 <span :class="gaugeFactors[2].colorClass">{{ gaugeFactors[2].text }} <i :class="gaugeFactors[2].iconClass"></i></span>
+                    <div class="gauge-wrapper">
+                      <div ref="gaugeCredit" class="gauge-chart"></div>
+                      <div v-if="gaugeFactors.length" class="gauge-title">
+                        信用 <span :class="gaugeFactors[1].colorClass">{{ gaugeFactors[1].text }} <i :class="gaugeFactors[1].iconClass"></i></span>
+                      </div>
                     </div>
-                    <div v-if="gaugeFactors.length" class="gauge-date">{{ latestMacro.tradeDate.replace(/-/g, '') }}</div>
+                    <div class="gauge-wrapper">
+                      <div ref="gaugeGrowth" class="gauge-chart"></div>
+                      <div v-if="gaugeFactors.length" class="gauge-title">
+                        增长 <span :class="gaugeFactors[2].colorClass">{{ gaugeFactors[2].text }} <i :class="gaugeFactors[2].iconClass"></i></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -322,6 +362,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </div>
   </div>
 </template>
 
@@ -355,6 +396,10 @@ export default {
     RiskBudgetBacktest
   },
   props: {
+    showHeader: {
+      type: Boolean,
+      default: true
+    },
     globalDateRange: {
       type: Array,
       default: () => []
@@ -641,8 +686,8 @@ export default {
     initDefaultDateRange() {
       this.loading = true;
       axios.post('/api/factors/stage/list', {}).then(response => {
-        const data = response.data || [];
-        if (data.length > 0) {
+        const data = (response.data && response.data.status) ? response.data.data : [];
+        if (data && data.length > 0) {
           const latestData = data[data.length - 1];
           const endDateStr = latestData.tradeDate;
           
@@ -902,7 +947,7 @@ export default {
       }
 
       const stagePromise = (opts && opts.prefetchedStageData)
-        ? Promise.resolve({ data: opts.prefetchedStageData })
+        ? Promise.resolve({ data: { status: true, data: opts.prefetchedStageData } })
         : axios.post('/api/factors/stage/list', params);
 
         return Promise.all([
@@ -910,9 +955,9 @@ export default {
         axios.post('/api/factors/money/list', params),
         axios.post('/api/factors/credit-growth/list', params)
       ]).then(responses => {
-        this.tableData = responses[0].data || [];
-        this.moneyList = (responses[1].data || []).reverse();
-        this.creditGrowthList = (responses[2].data || []).reverse();
+        this.tableData = (responses[0].data && responses[0].data.status) ? responses[0].data.data : [];
+        this.moneyList = ((responses[1].data && responses[1].data.status ? responses[1].data.data : []) || []).reverse();
+        this.creditGrowthList = ((responses[2].data && responses[2].data.status ? responses[2].data.data : []) || []).reverse();
         
         this.renderAllCharts();
         return this.fetchStatsData();
@@ -941,8 +986,8 @@ export default {
         axios.post('/api/returns/asset/list', {}),               // 大类资产全历史日频收益序列
         axios.post('/api/returns/sector-excess/list', {})        // 行业板块全历史日频超额序列
       ]).then(responses => {
-        this.assetStatsList = responses[0].data || [];
-        this.sectorStatsList = responses[1].data || [];
+        this.assetStatsList = (responses[0].data && responses[0].data.status) ? responses[0].data.data : [];
+        this.sectorStatsList = (responses[1].data && responses[1].data.status) ? responses[1].data.data : [];
         
         /**
          * 计算大类资产累计净值走势
@@ -951,7 +996,7 @@ export default {
          * 早期历史某些资产可能尚未上市（值为 null/空），若直接连乘会导致 1 * null = 0 使整条曲线归零；
          * 因此引入 started 标志位：在首个有效收益日之前保留为 null，自首日开始连乘，上市后缺失值则保持平盘净值。
          */
-        const assetList = responses[2].data || [];
+        const assetList = (responses[2].data && responses[2].data.status) ? responses[2].data.data : [];
         const majorDefs = [
           { code: 'H00300.CSI', camel: 'h00300Csi' },
           { code: 'H00852.SH', camel: 'h00852Sh' },
@@ -991,7 +1036,7 @@ export default {
         /**
          * 计算行业板块累计超额净值走势（同样采用 null 安全的连乘算法）
          */
-        const sectorList = responses[3].data || [];
+        const sectorList = (responses[3].data && responses[3].data.status) ? responses[3].data.data : [];
         const sectorDefs = [
           { code: '881001.WI', camel: 'wi881001' },
           { code: 'CI005919.WI', camel: 'ci005919Wi' },
@@ -1124,11 +1169,21 @@ export default {
      * @returns {Object|null} ECharts 实例对象
      */
     initChart(refName) {
-      if (!this.$refs[refName]) return null;
-      if (!this.charts[refName]) {
-        this.charts[refName] = echarts.init(this.$refs[refName]);
+      const el = this.$refs[refName];
+      if (!el) return null;
+      let existingInstance = echarts.getInstanceByDom(el);
+      if (existingInstance) {
+        this.charts[refName] = existingInstance;
+        return existingInstance;
       }
-      return this.charts[refName];
+      if (this.charts[refName]) {
+        try {
+          this.charts[refName].dispose();
+        } catch (e) {}
+      }
+      const chart = echarts.init(el);
+      this.charts[refName] = chart;
+      return chart;
     },
     /**
      * 渲染综合周期阶段图表 (瀑布图变体)
@@ -1932,6 +1987,43 @@ export default {
   width: 100%;
   box-sizing: border-box;
 }
+.app-header-bar {
+  background-color: #409EFF;
+  color: white;
+  height: 60px;
+  line-height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-title-text {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: #ffffff;
+  font-weight: 600;
+}
+.header-help-icon {
+  margin-left: 8px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+.header-help-icon:hover {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+.stage-content-body {
+  padding: 20px;
+  box-sizing: border-box;
+}
 .legend-boxes {
   display: flex;
   flex-wrap: wrap;
@@ -2101,29 +2193,36 @@ export default {
 }
 .macro-text-part {
   flex: 1.3;
-  padding-right: 12px;
+  padding-right: 14px;
   border-right: 1px dashed #DCDFE6;
   font-size: 13px;
   color: #606266;
   line-height: 1.8;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 .macro-stage-section {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 .macro-stage-title {
   font-size: 14px;
   font-weight: bold;
   color: #303133;
   margin-bottom: 8px;
+  line-height: 20px;
+  display: flex;
+  align-items: center;
+}
+.macro-cycles-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 .stage-cycles-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 4px;
-  margin-bottom: 8px;
+  width: 100%;
 }
 .cycle-pill {
   display: flex;
@@ -2186,15 +2285,23 @@ export default {
 .macro-gauges-part {
   flex: 1.1;
   display: flex;
+  flex-direction: column;
+  padding-left: 14px;
+}
+.macro-gauges-row {
+  display: flex;
   align-items: center;
   justify-content: space-around;
-  padding-left: 10px;
+  width: 100%;
+  flex: 1;
 }
 .gauge-wrapper {
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex: 1;
 }
 .gauge-chart {
   width: 70px;
@@ -2204,6 +2311,7 @@ export default {
   font-size: 12px;
   font-weight: bold;
   margin-top: -5px;
+  white-space: nowrap;
 }
 .gauge-date {
   font-size: 11px;

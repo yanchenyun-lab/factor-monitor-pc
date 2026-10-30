@@ -1,6 +1,7 @@
 package com.smartir.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.smartir.common.JsonResult;
 import com.smartir.entity.StockRiskBudgetMoneyFactorsDO;
 import com.smartir.service.MoneyFactorService;
 import com.smartir.dto.ReturnStatsQueryDTO;
@@ -20,7 +21,7 @@ public class MoneyFactorController {
     private MoneyFactorService moneyFactorService;
 
     @PostMapping("/list")
-    public List<StockRiskBudgetMoneyFactorsDO> getList(@RequestBody(required = false) ReturnStatsQueryDTO queryDTO) {
+    public JsonResult<List<StockRiskBudgetMoneyFactorsDO>> getList(@RequestBody(required = false) ReturnStatsQueryDTO queryDTO) {
         String startDate = queryDTO != null ? queryDTO.getStartDate() : null;
         String endDate = queryDTO != null ? queryDTO.getEndDate() : null;
         QueryWrapper<StockRiskBudgetMoneyFactorsDO> wrapper = new QueryWrapper<>();
@@ -31,6 +32,6 @@ public class MoneyFactorController {
             wrapper.le("trade_date", endDate);
         }
         wrapper.orderByDesc("trade_date");
-        return moneyFactorService.list(wrapper);
+        return JsonResult.success(moneyFactorService.list(wrapper));
     }
 }

@@ -955,9 +955,10 @@ export default {
     fetchCandidates() {
       // 假设使用同一端口或通过代理，您可以根据实际情况修改
       axios.post('/api/returns/candidates').then(res => {
-         if (res.data) {
-           this.candidateMajorAssets = res.data.candidateMajorAssets || [];
-           this.candidateSectorAssets = res.data.candidateSectorAssets || [];
+         if (res.data && res.data.status) {
+           const data = res.data.data || {}
+           this.candidateMajorAssets = data.candidateMajorAssets || [];
+           this.candidateSectorAssets = data.candidateSectorAssets || [];
          }
       }).catch(e => {
          console.error('Failed to fetch candidates from java api', e);
@@ -1182,11 +1183,10 @@ export default {
         custom_bounds: { "stock": [0.0, 0.2] }
       }
 
-      const apiHost = window.location.hostname || 'localhost'
-      axios.post(`http://${apiHost}:8000/api/dynamic-risk-budget`, payload)
+      axios.post('/api/returns/dynamic-risk-budget', payload)
         .then(res => {
           self.major.loading = false
-          if (res.data && res.data.success) {
+          if (res.data && res.data.status) {
             const dataObj = res.data.data || {}
             self.major.cycle = dataObj.current_cycle || ''
             self.major.positions = dataObj.positions || []
@@ -1201,7 +1201,7 @@ export default {
         })
         .catch(err => {
           self.major.loading = false
-          self.major.error = '无法连接到动态风险预算服务，请确认 API 服务 (api.py) 已启动'
+          self.major.error = (err.response && err.response.data && err.response.data.message) || err.message || '无法连接到动态风险预算服务，请确认后端服务已启动'
           console.error('Major Dynamic Risk Budget Error:', err)
         })
     },
@@ -1554,11 +1554,10 @@ export default {
         end_date: endDate
       }
 
-      const apiHost = window.location.hostname || 'localhost'
-      axios.post(`http://${apiHost}:8000/api/dynamic-risk-budget`, payload)
+      axios.post('/api/returns/dynamic-risk-budget', payload)
         .then(res => {
           self.sector.loading = false
-          if (res.data && res.data.success) {
+          if (res.data && res.data.status) {
             const dataObj = res.data.data || {}
             self.sector.cycle = dataObj.current_cycle || dataObj.cycle || ''
             self.sector.positions = dataObj.positions || []
@@ -1573,7 +1572,7 @@ export default {
         })
         .catch(err => {
           self.sector.loading = false
-          self.sector.error = '无法连接到动态风险预算服务，请确认 API 服务 (api.py) 已启动'
+          self.sector.error = (err.response && err.response.data && err.response.data.message) || err.message || '无法连接到动态风险预算服务，请确认后端服务已启动'
           console.error('Sector Dynamic Risk Budget Error:', err)
         })
     },

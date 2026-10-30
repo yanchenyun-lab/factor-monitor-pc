@@ -5,6 +5,8 @@ smartir-quant 量化微服务主入口
 """
 
 import sys
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,17 +20,35 @@ if str(_current_dir) not in sys.path:
 from settings import settings
 from api.routes import router as api_router
 
-# 尝试初始化 Nacos 客户端注册服务
-try:
-    from nacos_client import register_service
-    register_service()
-except Exception:
-    pass
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI 生命周期管理器（替代已弃用的 on_event 装饰器）
+    yield 之前为 startup 逻辑，yield 之后为 shutdown 逻辑
+    """
+    # --- startup ---
+    try:
+        from nacos_client import register_service
+        register_service()
+    except Exception as e:
+        logging.getLogger("smartir-quant").warning(f"启动时注册到 Nacos 异常: {e}")
+
+    yield  # 服务运行中
+
+    # --- shutdown ---
+    try:
+        from nacos_client import deregister_service
+        deregister_service()
+    except Exception:
+        pass
+
 
 app = FastAPI(
     title="smartir-quant 量化服务",
     description="提供宏观大类资产与行业超额动态风险预算测算及全景回测接口",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # 配置 CORS 跨域中间件，方便本地与云桌面 Vue 前端直接联调

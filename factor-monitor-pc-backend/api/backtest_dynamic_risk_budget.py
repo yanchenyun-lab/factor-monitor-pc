@@ -98,8 +98,7 @@ class RiskBudgetBacktestEngine:
                  custom_bounds: dict = None,
                  history_window: int = 720,
                  transaction_cost: float = 0.0003,
-                 rf: float = 0.02,
-                 api_base_url: str = None):
+                 rf: float = 0.02):
         """
 
         初始化回测引擎并设置核心运行参数
@@ -131,7 +130,6 @@ class RiskBudgetBacktestEngine:
                每次调仓时按: 双边换手率 * transaction_cost 扣除摩擦损耗。
         :param rf: 年化无风险利率（默认 0.02，即 2.0%）。
                用于计算超额收益指标（夏普比率 Sharpe、索提诺比率 Sortino）。
-        :param api_base_url: smartIR Java 后端 HTTP 基础地址，默认读取环境变量 SMARTIR_API_BASE 或 http://127.0.0.1:8080。
         """
         # 1. 资产池配置与资产键列表
         self.asset_pool = asset_pool
@@ -161,33 +159,12 @@ class RiskBudgetBacktestEngine:
         self.rebalance_records = []       # 调仓操作历史记录列表 (记录每次调仓日期、周期、换手率、目标权重)
         self.metrics_summary = {}         # 最终量化指标汇总字典 (包含 CAGR、Sharpe、MDD 等格式化指标)
 
-    def load_data_from_api(self):
+    def parse_risk_data(self, data_bundle: dict):
         """
-        通过 smartIR Java 后端提供的 HTTP 接口批量拉取全量行情与宏观阶段数据
-        适用于云桌面内网隔离环境中无法直连 MySQL 数据库的场景
+        解析基础风险数据包 (宏观周期 stage 与资产收益率 returns 时序)
         """
-        raw_codes = [str(info['code']).strip('`') for info in self.asset_pool.values()]
-        url = f"{self.api_base_url.rstrip('/')}/api/returns/risk-data"
-        payload = {
-            "assetCodes": raw_codes,
-            "startDate": self.start_date,
-            "endDate": self.end_date
-        }
-        try:
-            resp = requests.post(url, json=payload, timeout=60)
-            resp.raise_for_status()
-            res_json = resp.json()
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError(f"无法连接到 smartIR Java 后端服务 ({url})，请确认 Java 项目 (端口 8080) 已启动或配置 SMARTIR_API_BASE")
-        except requests.exceptions.Timeout:
-            raise TimeoutError(f"请求 smartIR Java 后端服务超时 (超过 60s): {url}")
-        except Exception as e:
-            raise RuntimeError(f"请求 smartIR Java 接口失败: {url}, 错误: {e}")
-
-        data_bundle = res_json.get('data') if isinstance(res_json, dict) and 'data' in res_json else res_json
         if not data_bundle or not isinstance(data_bundle, dict):
-            raise ValueError(f"从 Java 接口 {url} 获取数据为空或格式不正确: {res_json}")
-
+            raise ValueError("提供的风险数据包为空或格式不正确")
 
         # 1. 解析宏观周期数据
         stages_data = data_bundle.get('stages') or []
@@ -195,8 +172,12 @@ class RiskBudgetBacktestEngine:
             raise ValueError("从 Java 接口未获取到宏观周期 stage 数据")
         df_stage = pd.DataFrame(stages_data)
         trade_date_col = 'tradeDate' if 'tradeDate' in df_stage.columns else 'trade_date'
-        df_stage['trade_date'] = df_stage[trade_date_col].astype(str)
+        
+        # 优化点：统一转换为标准 YYYY-MM-DD 字符串格式，解决日期 granularity (如带时间戳) 或格式不一致导致的 Join 失败问题
+        df_stage['trade_date'] = pd.to_datetime(df_stage[trade_date_col]).dt.strftime('%Y-%m-%d')
+        df_stage.drop_duplicates(subset=['trade_date'], keep='last', inplace=True)
         df_stage.set_index('trade_date', inplace=True)
+        
         stage_col = 'stage'
         df_stage['cycle_name'] = df_stage[stage_col].map(lambda s: CYCLE_MAP.get(s, "阶段1-信用扩张"))
 
@@ -209,7 +190,7 @@ class RiskBudgetBacktestEngine:
         ret_code_col = 'assetCode' if 'assetCode' in df_raw.columns else 'asset_code'
         ret_rate_col = 'returnRate' if 'returnRate' in df_raw.columns else 'return_rate'
 
-        df_raw['trade_date'] = df_raw[ret_date_col].astype(str)
+        df_raw['trade_date'] = pd.to_datetime(df_raw[ret_date_col]).dt.strftime('%Y-%m-%d')
         df_returns = df_raw.pivot(index='trade_date', columns=ret_code_col, values=ret_rate_col)
 
         # 3. 列名标准化重命名 (大小写不敏感映射)
@@ -228,9 +209,21 @@ class RiskBudgetBacktestEngine:
 
         df_returns.dropna(inplace=True)
 
-        # 5. 合并收益率与宏观周期 (左连接并平滑延展宏观周期)
+        # 5. 合并收益率与宏观周期 (左连接并通过前向/后向填充解决数据稀疏或时间段不完全重合问题)
+        if df_returns.empty:
+            raise ValueError("提供的资产收益率数据为空，无法执行回测")
+        
+        # 执行左连接
         merged = df_returns.join(df_stage[['stage', 'cycle_name']], how='left')
-        merged['stage'] = merged['stage'].ffill().bfill().astype(int)
+        
+        # 优化点：先执行填充再检查。只要系统中有宏观数据，ffill/bfill 就能覆盖回测区间。
+        # ffill: 用之前的状态填充（处理区间内的缺失）；bfill: 用之后的状态填充（处理区间起点早于数据起点的情况）
+        merged['stage'] = merged['stage'].ffill().bfill()
+        
+        if merged['stage'].isnull().all():
+             raise ValueError("回测时间范围内及前后均缺少宏观周期状态数据，请检查数据源是否完整")
+
+        merged['stage'] = merged['stage'].fillna(1).astype(int)
         merged['cycle_name'] = merged['stage'].map(lambda s: CYCLE_MAP.get(s, "阶段1-信用扩张"))
         merged.sort_index(inplace=True)
 
@@ -238,11 +231,14 @@ class RiskBudgetBacktestEngine:
         self.full_stage_df = df_stage
         self.merged_df = merged
 
-        print(f"[数据加载完成 (via Java API)] 总有效交易日: {len(merged)} 天, 时间范围: {merged.index[0]} ~ {merged.index[-1]}")
+        print(f"[数据加载完成] 总有效交易日: {len(merged)} 天, 时间范围: {merged.index[0]} ~ {merged.index[-1]}")
 
-    def load_data(self):
-        """批量预载全量行情与宏观阶段数据 (纯通过 smartIR Java 后端 HTTP 接口，无数据库直连)"""
-        self.load_data_from_api()
+    def load_data(self, risk_data: dict = None):
+        """批量预载全量行情与宏观阶段数据 (必须传入 risk_data，不再支持通过 Java HTTP API 获取)"""
+        if risk_data:
+            self.parse_risk_data(risk_data)
+        else:
+            raise ValueError("缺少必填参数: risk_data 数据包。系统不再支持自动从 smartir-service 获取数据。")
 
     def get_rebalance_flags(self, dates: list):
         """
@@ -292,7 +288,7 @@ class RiskBudgetBacktestEngine:
 
         return is_rebal
 
-    def run_backtest(self):
+    def run_backtest(self, risk_data: dict = None):
         """
         执行历史逐日全量量化回测模拟
 
@@ -317,7 +313,7 @@ class RiskBudgetBacktestEngine:
         3. 整理为 DataFrame 并计算多维金融绩效指标。
         """
         if self.merged_df is None:
-            self.load_data()
+            self.load_data(risk_data=risk_data)
 
         df = self.merged_df
         all_dates = list(df.index)
@@ -967,7 +963,9 @@ def run_backtest_api(payload: dict) -> dict:
     except (TypeError, ValueError):
         transaction_cost = 0.0003
     rf = float(payload.get('rf', 0.02))
-    api_base_url = payload.get('api_base_url')
+
+    # 提取 risk_data
+    risk_data = payload.get('risk_data')
 
     # 实例化回测引擎
     engine = RiskBudgetBacktestEngine(
@@ -980,13 +978,12 @@ def run_backtest_api(payload: dict) -> dict:
         custom_bounds=clean_bounds,
         history_window=history_window,
         transaction_cost=transaction_cost,
-        rf=rf,
-        api_base_url=api_base_url
+        rf=rf
     )
 
 
     # 执行回测
-    engine.run_backtest()
+    engine.run_backtest(risk_data=risk_data)
     df = engine.backtest_results_df
 
     # -------------------------------------------------------------------------
@@ -1103,7 +1100,6 @@ def run_backtest_api(payload: dict) -> dict:
     }
 
     return {
-        "success": True,
         "metrics_summary": engine.metrics_summary,  # 中文格式化汇总
         "raw_metrics": raw_metrics,                # 纯浮点数量化指标
         "annual_table": annual_table,              # 分自然年度收益表

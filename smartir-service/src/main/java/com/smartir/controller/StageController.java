@@ -1,6 +1,7 @@
 package com.smartir.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import com.smartir.common.JsonResult;
 import com.smartir.service.StageService;
 import com.smartir.vo.StageResultVO;
 import io.swagger.annotations.Api;
@@ -24,26 +25,26 @@ public class StageController {
 
     @PostMapping("/list")
     @ApiOperation("获取完整的周期阶段推导数据")
-    public List<StageResultVO> getStageList(@RequestBody(required = false) ReturnStatsQueryDTO queryDTO) {
+    public JsonResult<List<StageResultVO>> getStageList(@RequestBody(required = false) ReturnStatsQueryDTO queryDTO) {
         String startDate = queryDTO != null ? queryDTO.getStartDate() : null;
         String endDate = queryDTO != null ? queryDTO.getEndDate() : null;
-        return stageService.getStageList(startDate, endDate);
+        return JsonResult.success(stageService.getStageList(startDate, endDate));
     }
 
     @PostMapping("/sync-table")
     @ApiOperation("同步历史阶段数据到中间表")
-    public String syncHistoricalStage() {
+    public JsonResult<String> syncHistoricalStage() {
         historicalStageService.syncHistoricalStage();
-        return "Sync successful";
+        return JsonResult.success("Sync successful");
     }
 
     @PostMapping("/sync-table-day")
     @ApiOperation("同步历史阶段数据到中间表(每日)")
-    public String syncHistoricalStageDay(@RequestParam String date) {
+    public JsonResult<String> syncHistoricalStageDay(@RequestParam String date) {
         if (StringUtils.isBlank(date)) {
-            return "日期不能为空";
+            return JsonResult.error("日期不能为空");
         }
         historicalStageService.syncHistoricalStageDay(date);
-        return "同步" + date + "成功";
+        return JsonResult.success("同步" + date + "成功");
     }
 }
